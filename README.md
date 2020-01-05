@@ -1,5 +1,5 @@
 # adventofcode2019
-[Advent of Code](https://adventofcode.com/2019) exercises
+[Advent of Code](https://adventofcode.com/2019) exercises, TDD in python
 
 ## Development
 
@@ -13,6 +13,4 @@ python 3.7
 
 ### Tests
 
-run `sniffer` to develop in TDD
-
-
+run `python sniffer` in the folder of the given day (e.g. in fiddles/_01) to develop in TDD
