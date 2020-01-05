@@ -4,16 +4,11 @@ import unittest
 from fiddles._05.fiddle import (
     execute_next_instruction,
     execute,
-    mul,
-    add,
-    halt,
-    store_input,
-    output,
 )
 
 
 class TestFiddle(unittest.TestCase):
-    def test_execute_next_instruction_mul(self):
+    def test_mul(self):
         program = [0,1002,5,3,5,33]
         result = execute_next_instruction(program, pointer=1)
 
@@ -22,7 +17,7 @@ class TestFiddle(unittest.TestCase):
             ([0, 1002, 5, 3, 5, 99], 5)
         )
 
-    def test_execute_next_instruction_add(self):
+    def test_add(self):
         program = [0,1001,5,3,5,33]
         result = execute_next_instruction(program, pointer=1)
 
@@ -31,7 +26,7 @@ class TestFiddle(unittest.TestCase):
             ([0, 1001, 5, 3, 5, 36], 5)
         )
 
-    def test_execute_next_instruction_halt(self):
+    def test_halt(self):
         program = [1001,4,3,4,99]
         result = execute_next_instruction(program, pointer=4)
 
@@ -40,7 +35,7 @@ class TestFiddle(unittest.TestCase):
             ([1001,4,3,4,99], None)
         )
 
-    def test_execute_next_instruction_store_input(self):
+    def test_store_input(self):
         program = [0,3,2]
 
         mock_input = ['10']
@@ -52,7 +47,7 @@ class TestFiddle(unittest.TestCase):
             ([0, 3, 10], 3)
         )
 
-    def test_execute_next_instruction_output(self):
+    def test_output(self):
         program = [0,4,3,50]
 
         with patch('sys.stdout', new=StringIO()) as fake_output:
@@ -68,6 +63,155 @@ class TestFiddle(unittest.TestCase):
             '50'
         )
 
+    def test_jump_if_true(self):
+        program = [0, 5, 0, 2]
+        result = execute_next_instruction(program, pointer=1)
+
+        self.assertEqual(
+            result,
+            (program, 4)
+        )
+
+        program = [0, 5, 1, 1]
+        result = execute_next_instruction(program, pointer=1)
+
+        self.assertEqual(
+            result,
+            (program, 5)
+        )
+
+        program = [0, 105, 1, 1]
+        result = execute_next_instruction(program, pointer=1)
+
+        self.assertEqual(
+            result,
+            (program, 105)
+        )
+
+    def test_jump_if_false(self):
+        program = [0, 6, 1, 2]
+        result = execute_next_instruction(program, pointer=1)
+
+        self.assertEqual(
+            result,
+            (program, 4)
+        )
+
+        program = [0, 6, 0, 1]
+        result = execute_next_instruction(program, pointer=1)
+
+        self.assertEqual(
+            result,
+            (program, 6)
+        )
+
+        program = [0, 106, 0, 1]
+        result = execute_next_instruction(program, pointer=1)
+
+        self.assertEqual(
+            result,
+            (program, 106)
+        )
+
+
+    def test_less_than(self):
+        program = [1, 7, 3, 2, 1]
+        result = execute_next_instruction(program, pointer=1)
+
+        self.assertEqual(
+            result,
+            ([1, 1, 3, 2, 1], 5),
+            (
+                'if the first parameter (position mode) is less than the second parameter, '
+                '(position mode) it stores 1 in the position given by the third parameter'
+            )
+        )
+
+        program = [1, 1107, 2, 3, 1]
+        result = execute_next_instruction(program, pointer=1)
+
+        self.assertEqual(
+            result,
+            ([1, 1, 2, 3, 1], 5),
+            (
+                'if the first parameter (immediate mode) is less than the second parameter, '
+                '(immmediate mode) it stores 1 in the position given by the third parameter'
+            )
+        )
+
+        program = [1, 7, 1, 2, 1]
+        result = execute_next_instruction(program, pointer=1)
+
+        self.assertEqual(
+            result,
+            ([1, 0, 1, 2, 1], 5),
+            (
+                'if the first parameter (position mode) is >= the second parameter, '
+                '(position mode) it stores 0 in the position given by the third parameter'
+            )
+        )
+
+        program = [1, 1107, 2, 1, 1]
+        result = execute_next_instruction(program, pointer=1)
+
+        self.assertEqual(
+            result,
+            ([1, 0, 2, 1, 1], 5),
+            (
+                'if the first parameter (immediate mode) is >= the second parameter, '
+                '(immediate mode) it stores 0 in the position given by the third parameter'
+            )
+        )
+
+    def test_equals(self):
+        program = [1, 8, 0, 5, 1, 1]
+        result = execute_next_instruction(program, pointer=1)
+
+        self.assertEqual(
+            result,
+            ([1, 1, 0, 5, 1, 1], 5),
+            (
+                'if the first parameter (position mode) is equal to the second parameter, '
+                '(position mode) it stores 1 in the position given by the third parameter'
+            )
+        )
+
+        program = [1, 1108, 5, 5, 1, 1]
+        result = execute_next_instruction(program, pointer=1)
+
+        self.assertEqual(
+            result,
+            ([1, 1, 5, 5, 1, 1], 5),
+            (
+                'if the first parameter (immediate mode) is equal to the second parameter, '
+                '(immediate mode) it stores 1 in the position given by the third parameter'
+            )
+        )
+
+        program = [1, 8, 0, 5, 1, 2]
+        result = execute_next_instruction(program, pointer=1)
+
+        self.assertEqual(
+            result,
+            ([1, 0, 0, 5, 1, 2], 5),
+            (
+                'if the first parameter (position mode) is not equal to the second parameter, '
+                '(position mode) it stores 0 in the position given by the third parameter'
+            )
+        )
+
+        program = [1, 1108, 5, 4, 1, 1]
+        result = execute_next_instruction(program, pointer=1)
+
+        self.assertEqual(
+            result,
+            ([1, 0, 5, 4, 1, 1], 5),
+            (
+                'if the first parameter (immediate mode) is not equal to the second parameter, '
+                '(immediate mode) it stores 0 in the position given by the third parameter'
+            )
+        )
+
     def test_execute(self):
         program = [1002,4,3,4,33]
         result = execute(program)
@@ -77,6 +221,18 @@ class TestFiddle(unittest.TestCase):
             'Execute the program'
         )
 
+    def test_program_01(self):
+        program = [3,9,8,9,10,9,4,9,99,-1,8]
+
+        mock_input = ['8']
+        with patch('builtins.input', side_effect=mock_input):
+            with patch('sys.stdout', new=StringIO()) as fake_output:
+                execute(program)
+
+        self.assertEqual(
+            fake_output.getvalue().strip(),
+            '1'
+        )
 
 if __name__ == '__main__':
     unittest.main()
