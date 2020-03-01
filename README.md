@@ -13,4 +13,4 @@ python 3.7
 
 ### Tests
 
-run `python sniffer` in the folder of the given day (e.g. in fiddles/_01) to develop in TDD
+run `sniffer` in the folder of the given day (e.g. in fiddles/_01) to develop in TDD
