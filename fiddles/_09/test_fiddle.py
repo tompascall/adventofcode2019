@@ -1,4 +1,5 @@
 import unittest
+import re
 from fiddles._09.fiddle import (
     IO,
     Machine,
@@ -20,12 +21,24 @@ class TestFiddle(unittest.TestCase):
         )
 
     def test_machine_add(self):
-        program = [0,1001,5,3,5,33]
+        program = [0,1001,5,3,5,33] # position and immediate mode
         machine = Machine(program, 1)
         machine.execute_next_instruction()
         self.assertEqual(
             machine.get_program(),
             [0, 1001, 5, 3, 5, 36]
+        )
+        self.assertEqual(
+            machine.get_pointer(),
+            5
+        )
+
+        program = [0,1201,4,3,5,33] # 12: relative and immediate
+        machine = Machine(program, 1, relative_base=1)
+        machine.execute_next_instruction()
+        self.assertEqual(
+            machine.get_program(),
+            [0, 1201, 4, 3, 5, 36]
         )
         self.assertEqual(
             machine.get_pointer(),
@@ -113,6 +126,30 @@ class TestFiddle(unittest.TestCase):
             105
         )
 
+        program = [0, 205, 1, 1]
+        machine = Machine(program, 1, relative_base=-1)
+        machine.execute_next_instruction()
+        self.assertEqual(
+            machine.get_program(),
+            program
+        )
+        self.assertEqual(
+            machine.get_pointer(),
+            4
+        )
+
+        program = [0, 2105, 1, 1]
+        machine = Machine(program, 1, relative_base=-1)
+        machine.execute_next_instruction()
+        self.assertEqual(
+            machine.get_program(),
+            program
+        )
+        self.assertEqual(
+            machine.get_pointer(),
+            0
+        )
+
     def test_machine_jump_if_false(self):
         program = [0, 6, 1, 2]
         machine = Machine(program, 1)
@@ -148,6 +185,30 @@ class TestFiddle(unittest.TestCase):
         self.assertEqual(
             machine.get_pointer(),
             106
+        )
+
+        program = [0, 2106, 0, 1]
+        machine = Machine(program, 1)
+        machine.execute_next_instruction()
+        self.assertEqual(
+            machine.get_program(),
+            program
+        )
+        self.assertEqual(
+            machine.get_pointer(),
+            2106
+        )
+
+        program = [0, 1206, 1, 1]
+        machine = Machine(program, 1, relative_base=-1)
+        machine.execute_next_instruction()
+        self.assertEqual(
+            machine.get_program(),
+            program
+        )
+        self.assertEqual(
+            machine.get_pointer(),
+            1
         )
 
     def test_machine_less_than(self):
@@ -212,6 +273,17 @@ class TestFiddle(unittest.TestCase):
             (
                 'if the first parameter (immediate mode) is >= the second parameter, '
                 '(immediate mode) it stores 0 in the position given by the third parameter'
+            )
+        )
+        program = [0, 21107, 1, 2, 1]
+        machine = Machine(program, 1, relative_base=-1)
+        machine.execute_next_instruction()
+        self.assertEqual(
+            machine.get_program(),
+            [1, 21107, 1, 2, 1],
+            (
+                'if the first parameter (immediate mode) is < the second parameter, '
+                '(immediate mode) it stores 1 in the position given by the third parameter (relative mode)'
             )
         )
 
@@ -279,6 +351,19 @@ class TestFiddle(unittest.TestCase):
                 '(immediate mode) it stores 0 in the position given by the third parameter'
             )
         )
+    def test_adjust_relative_base(self):
+        program = [109, 19, 109, -19]
+        machine = Machine(program, relative_base=2000)
+        machine.execute_next_instruction()
+        self.assertEqual(
+            machine.relative_base,
+            2019
+        )
+        machine.execute_next_instruction()
+        self.assertEqual(
+            machine.relative_base,
+            2000
+        )
 
     def test_machine_run(self):
         program = [1002,4,3,4,33]
@@ -302,6 +387,34 @@ class TestFiddle(unittest.TestCase):
         self.assertEqual(
             machine.io.get_next_output(),
             '1'
+        )
+
+    def test_program_02(self):
+        program = [109,1,204,-1,99]
+        machine = Machine(program)
+        machine.run()
+        self.assertEqual(
+            machine.io.get_next_output(),
+            '109'
+        )
+
+    def test_program_copy(self):
+        program = [109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99]
+        machine = Machine(program, memory=100)
+        machine.run()
+        self.assertEqual(
+            [int(token) for token in machine.io.output][::-1],
+            program
+        )
+
+    def test_program_16_digit_number(self):
+        program = [1102,34915192,34915192,7,4,7,99,0]
+        machine = Machine(program, memory=100)
+        machine.run()
+        print('CC', machine.io.output[0])
+        self.assertEqual(
+            machine.io.output[0],
+            '1219070632396864'
         )
 
 if __name__ == '__main__':

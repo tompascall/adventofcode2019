@@ -21,10 +21,12 @@ class IO:
 
 
 class Machine():
-    def __init__(self, program, pointer=None, io=None):
-        self.program = program
+    def __init__(self, program, pointer=0, io=None, relative_base=0, memory=0):
+        self.program = program[:] + [0] * memory
         self.pointer = pointer or 0
+        self.relative_base = relative_base or 0
         self.io = io or IO()
+        self.memory = memory
 
     def get_program(self):
         return self.program
@@ -47,6 +49,33 @@ class Machine():
             return self.program[arg]
         if mode == 1: # immediate mode
             return arg
+        if mode == 2: # relative mode
+            return self.program[arg + self.relative_base]
+        else:
+            raise f'Invalid mode: {mode}'
+
+    def write_value(self, value, mode_arg):
+        (mode, arg) = mode_arg
+        if mode == 0: # position mode
+            self.program[arg] = value
+            return
+        if mode == 2: # relative mode
+            self.program[arg + self.relative_base] = value
+            return
+        else:
+            raise f'Invalid mode: {mode}'
+
+    def set_relative_base(self, mode_arg):
+        (mode, arg) = mode_arg
+        if mode == 0: # position mode
+            self.relative_base += self.program[arg]
+            return
+        if mode == 1: # immediate mode
+            self.relative_base += arg
+            return
+        if mode == 2: # relative mode
+            self.relative_base += self.program[arg + self.relative_base]
+            return
         else:
             raise f'Invalid mode: {mode}'
 
@@ -59,6 +88,7 @@ class Machine():
         return tuple(zip(modes, args))
 
     def pointer_to_next_instruction(self, param_num):
+        print('.', end='')
         return self.pointer + param_num + 1
 
     def add(self):
@@ -66,10 +96,7 @@ class Machine():
         mode_args = self.get_mode_args(param_num)
         addendum1 = self.read_value(mode_args[0])
         addendum2 = self.read_value(mode_args[1])
-        (_, position) = mode_args[2]
-        program_copy = self.program[:]
-        program_copy[position] = addendum1 + addendum2
-        self.program = program_copy
+        self.write_value(addendum1 + addendum2, mode_args[2])
         self.pointer = self.pointer_to_next_instruction(param_num)
 
     def mul(self):
@@ -77,10 +104,7 @@ class Machine():
         mode_args = self.get_mode_args(param_num)
         factor1 = self.read_value(mode_args[0])
         factor2 = self.read_value(mode_args[1])
-        (_, position) = mode_args[2]
-        program_copy = self.program[:]
-        program_copy[position] = factor1 * factor2
-        self.program = program_copy
+        self.write_value(factor1 * factor2, mode_args[2])
         self.pointer = self.pointer_to_next_instruction(param_num)
 
     def halt(self):
@@ -88,15 +112,15 @@ class Machine():
 
     def store_input(self):
         param_num = 1
-        program_copy = self.program[:]
-        program_copy[program_copy[self.pointer + 1]] = int(self.io.get_next_input())
-        self.program = program_copy
+        mode_args = self.get_mode_args(param_num)
+        self.write_value(int(self.io.get_next_input()), mode_args[0])
         self.pointer = self.pointer_to_next_instruction(param_num)
 
     def output(self):
         param_num = 1
         program_copy = self.program[:]
-        output = program_copy[program_copy[self.pointer + 1]]
+        mode_args = self.get_mode_args(param_num)
+        output = self.read_value(mode_args[0])
         self.io.store_output(str(output))
         self.program = program_copy
         self.pointer = self.pointer_to_next_instruction(param_num)
@@ -122,27 +146,27 @@ class Machine():
     def less_than(self):
         param_num = 3
         mode_args = self.get_mode_args(param_num)
-        (_, _, store_to) = self.get_args(param_num)
-        program_copy = self.program[:]
 
         if self.read_value(mode_args[0]) < self.read_value(mode_args[1]):
-            program_copy[store_to] = 1
+            self.write_value(1, mode_args[2])
         else:
-            program_copy[store_to] = 0
-        self.program = program_copy
+            self.write_value(0, mode_args[2])
         self.pointer = self.pointer_to_next_instruction(param_num)
 
     def equals(self):
         param_num = 3
         mode_args = self.get_mode_args(param_num)
-        (_, _, store_to) = self.get_args(param_num)
-        program_copy = self.program[:]
 
         if self.read_value(mode_args[0]) == self.read_value(mode_args[1]):
-            program_copy[store_to] = 1
+            self.write_value(1, mode_args[2])
         else:
-            program_copy[store_to] = 0
-        self.program = program_copy
+            self.write_value(0, mode_args[2])
+        self.pointer = self.pointer_to_next_instruction(param_num)
+
+    def adjust_relative_base(self):
+        param_num = 1
+        mode_args = self.get_mode_args(param_num)
+        self.set_relative_base(mode_args[0])
         self.pointer = self.pointer_to_next_instruction(param_num)
 
     def execute_next_instruction(self):
@@ -165,6 +189,8 @@ class Machine():
             self.less_than()
         elif opcode == 8:
             self.equals()
+        elif opcode == 9:
+            self.adjust_relative_base()
         else:
             raise ValueError(f'Invalid opcode: {opcode}')
 
@@ -177,4 +203,8 @@ if __name__ == '__main__':
     with open('./input.txt') as fiddle_input:
         [original_program] = csv.reader(fiddle_input, delimiter=',')
         original_program = [int(value) for value in original_program]
-        # Machine(original_program[:])
+
+        io = IO(initial_io={ 'input': ['2'], 'output': [] })
+        machine = Machine(original_program, io=io, memory=2000)
+        machine.run()
+        print(machine.io.output)
